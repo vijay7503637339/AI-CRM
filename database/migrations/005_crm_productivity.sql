@@ -1,0 +1,20 @@
+CREATE TABLE IF NOT EXISTS tasks (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    lead_id BIGINT UNSIGNED DEFAULT NULL,
+    title VARCHAR(180) NOT NULL,
+    description TEXT DEFAULT NULL,
+    due_at DATETIME DEFAULT NULL,
+    priority ENUM('low','medium','high','urgent') NOT NULL DEFAULT 'medium',
+    status ENUM('pending','completed','cancelled') NOT NULL DEFAULT 'pending',
+    assigned_to BIGINT UNSIGNED DEFAULT NULL,
+    created_by BIGINT UNSIGNED DEFAULT NULL,
+    completed_at DATETIME DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_tasks_due (status, due_at),
+    INDEX idx_tasks_lead (lead_id, status),
+    INDEX idx_tasks_assigned (assigned_to, status),
+    CONSTRAINT fk_tasks_lead FOREIGN KEY (lead_id) REFERENCES leads(id) ON DELETE CASCADE,
+    CONSTRAINT fk_tasks_assigned FOREIGN KEY (assigned_to) REFERENCES users(id) ON DELETE SET NULL,
+    CONSTRAINT fk_tasks_creator FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
