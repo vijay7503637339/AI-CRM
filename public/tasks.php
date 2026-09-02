@@ -1,0 +1,62 @@
+<?php
+require_once __DIR__ . '/../app/bootstrap.php';
+require_auth();
+
+$pdo = db();
+$user = current_user();
+$error = '';
+$filter = $_GET['filter'] ?? 'all';
+$allowedFilters = ['all','pending','completed','overdue'];
+if (!in_array($filter, $allowedFilters, true)) $filter = 'all';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    verify_csrf();
+    $action = $_POST['action'] ?? '';
+
+    if ($action === 'create') {
+        $title = trim($_POST['title'] ?? '');
+        if ($title === '') {
+            $error = 'Task title is required.';
+        } else {
+            $leadId = filter_var($_POST['lead_id'] ?? '', FILTER_VALIDATE_INT) ?: null;
+            $dueAt = trim($_POST['due_at'] ?? '') ?: null;
+            $priority = $_POST['priority'] ?? 'medium';
+            if (!in_array($priority, ['low','medium','high','urgent'], true)) $priority = 'medium';
+            $stmt = $pdo->prepare('INSERT INTO tasks (lead_id,title,description,due_at,priority,assigned_to,created_by) VALUES (?,?,?,?,?,?,?)');
+            $stmt->execute([$leadId, $title, trim($_POST['description'] ?? '') ?: null, $dueAt, $priority, $_POST['assigned_to'] ? (int)$_POST['assigned_to'] : null, $user['id']]);
+            header('Location: tasks.php'); exit;
+        }
+    } elseif ($action === 'status') {
+        $id = filter_var($_POST['id'] ?? '', FILTER_VALIDATE_INT);
+        $status = $_POST['status'] ?? '';
+        if ($id && in_array($status, ['pending','completed','cancelled'], true)) {
+            $completedAt = $status === 'completed' ? date('Y-m-d H:i:s') : null;
+            $pdo->prepare('UPDATE tasks SET status=?, completed_at=? WHERE id=?')->execute([$status, $completedAt, $id]);
+        }
+        header('Location: tasks.php?filter=' . urlencode($filter)); exit;
+    }
+}
+
+$leads = $pdo->query("SELECT id,name,company FROM leads ORDER BY name ASC")->fetchAll();
+$users = $pdo->query("SELECT id,name FROM users ORDER BY name ASC")->fetchAll();
+$where = '';
+if ($filter === 'pending') $where = "WHERE t.status='pending'";
+elseif ($filter === 'completed') $where = "WHERE t.status='completed'";
+elseif ($filter === 'overdue') $where = "WHERE t.status='pending' AND t.due_at IS NOT NULL AND t.due_at < NOW()";
+$tasks = $pdo->query("SELECT t.*, l.name AS lead_name, l.company, u.name AS assignee FROM tasks t LEFT JOIN leads l ON l.id=t.lead_id LEFT JOIN users u ON u.id=t.assigned_to {$where} ORDER BY CASE WHEN t.status='pending' THEN 0 ELSE 1 END, t.due_at IS NULL, t.due_at ASC, t.created_at DESC")->fetchAll();
+
+$counts = [
+    'all' => (int)$pdo->query("SELECT COUNT(*) FROM tasks")->fetchColumn(),
+    'pending' => (int)$pdo->query("SELECT COUNT(*) FROM tasks WHERE status='pending'")->fetchColumn(),
+    'overdue' => (int)$pdo->query("SELECT COUNT(*) FROM tasks WHERE status='pending' AND due_at IS NOT NULL AND due_at < NOW()")->fetchColumn(),
+    'completed' => (int)$pdo->query("SELECT COUNT(*) FROM tasks WHERE status='completed'")->fetchColumn(),
+];
+function taskBadge(string $value): string { return ucfirst($value); }
+?>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Tasks | AI CRM</title><link rel="stylesheet" href="assets/app.css"></head><body>
+<header class="topbar"><div class="brand">AI CRM</div><nav><a href="index.php">Dashboard</a><a href="leads.php">Leads</a><a href="pipeline.php">Pipeline</a><a href="tasks.php">Tasks</a><a href="analytics.php">Analytics</a><a href="logout.php">Logout</a></nav></header>
+<main class="container"><div class="page-head"><div><p class="eyebrow">PRODUCTIVITY</p><h1>Tasks & follow-ups</h1><p class="muted">Keep every sales action visible and on time.</p></div></div>
+<div class="filter-tabs"><a class="<?= $filter==='all'?'active':'' ?>" href="tasks.php">All <b><?=$counts['all']?></b></a><a class="<?= $filter==='pending'?'active':'' ?>" href="tasks.php?filter=pending">Open <b><?=$counts['pending']?></b></a><a class="<?= $filter==='overdue'?'active':'' ?>" href="tasks.php?filter=overdue">Overdue <b><?=$counts['overdue']?></b></a><a class="<?= $filter==='completed'?'active':'' ?>" href="tasks.php?filter=completed">Completed <b><?=$counts['completed']?></b></a></div>
+<?php if($error):?><div class="alert error"><?=e($error)?></div><?php endif;?>
+<div class="two-col"><section class="panel"><div class="panel-head"><h2>Create task</h2></div><form method="post" class="form-grid"><input type="hidden" name="csrf_token" value="<?=e(csrf_token())?>"><input type="hidden" name="action" value="create"><label class="full">Task title *<input name="title" required placeholder="Call lead about proposal"></label><label>Related lead<select name="lead_id"><option value="">No linked lead</option><?php foreach($leads as $lead):?><option value="<?=$lead['id']?>"><?=e($lead['name'])?><?= $lead['company']?' · '.e($lead['company']):'' ?></option><?php endforeach;?></select></label><label>Due date & time<input type="datetime-local" name="due_at"></label><label>Priority<select name="priority"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option><option value="urgent">Urgent</option></select></label><label>Assign to<select name="assigned_to"><option value="">Unassigned</option><?php foreach($users as $u):?><option value="<?=$u['id']?>" <?=$u['id']===$user['id']?'selected':''?>><?=e($u['name'])?></option><?php endforeach;?></select></label><label class="full">Description<textarea name="description" rows="3" placeholder="What needs to be done?"></textarea></label><div class="full"><button class="btn primary" type="submit">+ Create task</button></div></form></section>
+<section class="panel"><div class="panel-head"><h2><?=ucfirst($filter)?> tasks</h2><span class="muted small"><?=count($tasks)?> shown</span></div><?php if(!$tasks):?><div class="empty">No tasks in this view.</div><?php endif;?><?php foreach($tasks as $task):?><article class="task-row"><div class="task-main"><div><strong><?=e($task['title'])?></strong><?php if($task['lead_name']):?><a class="small" href="lead-view.php?id=<?=$task['lead_id']?>"> · <?=e($task['lead_name'])?></a><?php endif;?></div><p class="muted small"><?=e($task['description'] ?? '')?></p><div class="task-meta"><span class="priority priority-<?=e($task['priority'])?>"><?=e(taskBadge($task['priority']))?></span><?php if($task['due_at']):?><span class="<?=strtotime($task['due_at']) < time() && $task['status']==='pending'?'overdue':''?>">Due <?=e(date('d M Y, h:i A',strtotime($task['due_at'])))?></span><?php endif;?><?php if($task['assignee']):?><span>Assigned to <?=e($task['assignee'])?></span><?php endif;?></div></div><div><?php if($task['status']==='pending'):?><form method="post"><input type="hidden" name="csrf_token" value="<?=e(csrf_token())?>"><input type="hidden" name="action" value="status"><input type="hidden" name="id" value="<?=$task['id']?>"><input type="hidden" name="status" value="completed"><button class="btn" type="submit">✓ Complete</button></form><?php else:?><span class="pill"><?=e(taskBadge($task['status']))?></span><?php endif;?></div></article><?php endforeach;?></section></div></main></body></html>
