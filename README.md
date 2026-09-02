@@ -2,47 +2,95 @@
 
 An AI-first SaaS CRM for capturing, qualifying, managing and following up with leads.
 
-## MVP
+## Current MVP
 
-- Lead management
-- Sales pipeline
-- Lead scoring
-- AI sales assistant foundation
-- Follow-up tasks and activity timeline
-- Multi-tenant-ready architecture
+The first working PHP + MySQL milestone now includes:
 
-## Product direction
+- Secure session login
+- Dashboard with lead and pipeline metrics
+- Lead creation and searchable lead list
+- Sales pipeline board
+- Follow-up date and notes fields
+- AI score field ready for the scoring service
+- CSRF protection on write/login forms
+- PDO prepared statements
 
-The CRM is designed around controlled AI agents that use explicit tools rather than unrestricted database access.
+## Stack
 
-Core agent roles planned for the MVP:
-
-1. Lead Scoring Agent
-2. Lead Qualification Agent
-3. Follow-up Agent
-4. Sales Assistant
+- PHP 8.x
+- MySQL 8.x / MariaDB-compatible SQL
+- HTML + CSS
+- PDO
+- AI API integration planned as a service layer
 
 ## Architecture
 
 ```text
-Web App
+Browser
    |
    v
-API Layer
+PHP CRM
    |
-   +---- PostgreSQL
+   +---- MySQL
    |
-   +---- AI Service / LLM
+   +---- AI Service / LLM (next milestone)
    |
-   +---- Background Jobs
-   |
-   +---- External Integrations
-          |--- Email
-          |--- WhatsApp
-          |--- Calendar
-          |--- Lead Sources
+   +---- Email / WhatsApp / Calendar (later)
 ```
 
-## Development
+AI agents will use explicit application tools instead of unrestricted database access.
 
-The initial implementation is being built incrementally so each layer can be tested before integrations and autonomous workflows are added.
+## Local setup
+
+1. Clone the repository.
+2. Create the database and tables:
+
+```bash
+mysql -u root -p < database/schema.sql
+```
+
+3. Configure database credentials with environment variables. Defaults are suitable for many local XAMPP setups:
+
+```text
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_NAME=ai_crm
+DB_USER=root
+DB_PASS=
+```
+
+4. Create the first admin user:
+
+```bash
+php scripts/create-admin.php "Admin" admin@example.com "change-this-password"
+```
+
+5. Point your web server document root to the `public/` directory, or run PHP's local server:
+
+```bash
+php -S localhost:8000 -t public
+```
+
+6. Open `http://localhost:8000/login.php` and sign in with the admin account.
+
+## Database model
+
+Core tables currently included:
+
+- `users`
+- `pipeline_stages`
+- `leads`
+- `activities`
+
+## Next milestone
+
+- Lead detail page and activity timeline
+- Edit lead / change pipeline stage
+- Tasks and reminders
+- AI lead scoring service
+- AI-generated sales suggestions
+- Multi-tenant organization layer before SaaS launch
+
+## Security notes
+
+Never commit production database passwords or AI API keys. Keep secrets in server environment variables. The `public/` directory should be the web root so application/configuration files are not directly exposed.
