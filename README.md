@@ -1,58 +1,36 @@
-# AI CRM
+# WebStripe AI CRM
 
-A PHP + MySQL AI-first SaaS CRM for capturing, qualifying, managing and following up with leads.
+PHP 8.1+ / MySQL 8+ CRM foundation for WebStripe Technologies.
 
-## Working MVP
+## Current MVP
+- Secure session login
+- Lead CRUD (create/list/search)
+- Sales pipeline: New → Contacted → Qualified → Proposal → Won/Lost
+- Lead detail page and activity timeline
+- AI lead scoring endpoint with optional OpenAI integration
+- Responsive dashboard
+- Automatic lead-capture webhook for website/forms/integrations
+- Duplicate-event protection with external IDs
 
-- Secure session login/logout
-- Dashboard with sales metrics
-- Lead creation and searchable lead list
-- Lead detail page
-- Activity timeline with notes, calls, email, WhatsApp, meetings and tasks
-- Pipeline stage changes with system activity history
-- Explainable baseline AI lead scoring (AI API-ready service boundary)
-- CSRF protection and PDO prepared statements
-- Responsive UI
+## Local setup (XAMPP)
+1. Create a MySQL database by importing `database/schema.sql` in phpMyAdmin.
+2. Copy `config.example.php` to `config.php` and set database credentials.
+3. Set `LEAD_CAPTURE_KEY` in the server environment.
+4. From the project folder run: `php -S localhost:8000`
+5. Create an admin: `php tools/create_admin.php "Admin" "admin@example.com" "ChangeMe123!"`
+6. Open `http://localhost:8000`.
 
-## Stack
+For production, use environment variables for secrets and HTTPS. Never commit `config.php` or API keys.
 
-- PHP 8.x
-- MySQL 8.x / MariaDB-compatible SQL
-- HTML + CSS
-- PDO
-- AI service layer for future LLM integration
+## AI
+Set `OPENAI_API_KEY` and optionally `OPENAI_MODEL` in the server environment to enable LLM analysis. Without a key, the deterministic scoring fallback remains available.
 
-## Local setup
+## Automatic lead capture
+The endpoint `POST /api/lead-capture.php` accepts JSON or form-encoded lead data from approved sources. It creates a new CRM lead and an activity record automatically. See `docs/lead-capture.md` for the integration example and webhook flow.
 
-1. Clone the repository.
-2. Create the database:
+The system is designed to connect to official/authorized sources such as WebStripe website forms, ad-platform lead webhooks and approved business-data providers. Lead generation and outreach must follow the source's terms, applicable privacy requirements, consent rules and anti-spam requirements.
 
-```bash
-mysql -u root -p < database/schema.sql
+## Product direction
+```text
+Lead source → Capture → CRM → AI qualification → Lead score → Follow-up → Sales → Won
 ```
-
-3. Configure `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, and `DB_PASS` in the server environment. Local XAMPP defaults are supported.
-4. Create an admin:
-
-```bash
-php scripts/create-admin.php "Admin" admin@example.com "change-this-password"
-```
-
-5. Run:
-
-```bash
-php -S localhost:8000 -t public
-```
-
-6. Open `/login.php`.
-
-## AI direction
-
-The current scorer is deterministic and explainable so the CRM works without an AI API key. It can be replaced behind the same service boundary with an LLM provider. AI agents will receive bounded CRM context and explicit tools such as `get_lead`, `update_lead`, `create_task`, `create_note`, and `draft_followup` rather than unrestricted database access.
-
-## Roadmap
-
-1. CRM core: edit lead, tasks/reminders, contacts, filters
-2. AI: LLM lead scoring, qualification and sales suggestions
-3. Automation: email/WhatsApp drafts and approved sending workflows
-4. SaaS: organizations, roles, usage metering, billing and tenant isolation
