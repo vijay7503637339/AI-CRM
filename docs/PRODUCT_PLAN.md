@@ -44,6 +44,10 @@ Natural-language assistant that can read CRM context and perform approved action
 
 Agents must never receive unrestricted database credentials or unrestricted write access.
 
+## Current implementation
+
+The PHP + MySQL MVP now includes lead management, pipeline, lead details, activity timeline and an explainable baseline scoring service. The scoring service is API-ready so an LLM can be added without changing the CRM data model or UI contract.
+
 ## Phase 3 — Integrations
 
 - Website lead capture
