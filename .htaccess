@@ -1,0 +1,13 @@
+RewriteEngine On
+
+# Keep application source/config/database files outside the public URL space.
+RewriteRule ^(?:app|config|database|docs|scripts|tools)(?:/|$) - [F,L]
+RewriteRule ^(?:\.env|config\.php|README\.md)$ - [F,L]
+
+# Route the project root and public PHP pages through /public.
+RewriteRule ^$ public/index.php [L]
+RewriteCond %{REQUEST_URI} !^/AI-CRM/public/
+RewriteCond %{DOCUMENT_ROOT}/AI-CRM/public/$1 -f
+RewriteRule ^(.+)$ public/$1 [L]
+
+RewriteRule ^(.+)$ public/$1 [L]
